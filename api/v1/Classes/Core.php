@@ -1,14 +1,8 @@
 <?php
 
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
-namespace Api\Classes;
-use Api\Classes\Client;
-use Api\Classes\ClientCredentials;
+namespace Api\v1\Classes;
+use Api\v1\Classes\Client;
+use Api\v1\Classes\ClientCredentials;
 
 /**
  * Spotify API core
@@ -29,12 +23,23 @@ class Core {
         $this->get_token();
     }    
     
+    /**
+     * Search by artist name
+     * @author Gino Tome <ginotome@gmail.com>
+     * @return array 
+     */    
     protected function search_artist_by_name()
     {
         return $this->generic_search($this->artistName, self::SEARCH_TYPE_ARTIST);
     }
     
-    private function get_key_by_type(string $type)
+    /**
+     * Get key by type of request, the key containing the data in API response
+     * @param string $type
+     * @author Gino Tome <ginotome@gmail.com>
+     * @return string 
+     */        
+    private function get_key_by_type(string $type) :? string 
     {
         $types = [
             'artist' => 'artists',
@@ -47,7 +52,13 @@ class Core {
         }
     }
     
-    protected function get_artist_albums(?array $params = [])
+    /**
+     * Get all albums from specific artist
+     * @param array $params
+     * @author Gino Tome <ginotome@gmail.com>
+     * @return array 
+     */            
+    protected function get_artist_albums(?array $params = []) :? array
     {
         $url = str_replace('[artist_id]', $this->artistId, $this::ARTIST_ALBUMS_SEARCH_URL);
         
@@ -73,11 +84,17 @@ class Core {
             return $result['items'];
         }else{
             return [];
-        }        
-        echo '<pre>';var_dump($url,$result);die();
+        }
     }   
     
-    private function generic_search(string $query, string $type)
+    
+    /**
+     * Generic search - search any item in API
+     * @param string $query string $type
+     * @author Gino Tome <ginotome@gmail.com>
+     * @return array 
+     */        
+    private function generic_search(string $query, string $type) :? array
     {     
         $key = $this->get_key_by_type($type);
         if($key === null)
@@ -111,6 +128,12 @@ class Core {
         }
     }   
     
+    /**
+     * Paginates API response (if needed)
+     * @param array $data string $key
+     * @author Gino Tome <ginotome@gmail.com>
+     * @return array 
+     */      
     private function pagination(array $data, string $key)
     {
         $return = [];
@@ -134,6 +157,12 @@ class Core {
         return $return;
     }
     
+    /**
+     * Paginates API response with no key data (if needed) 
+     * @param array $data string $key
+     * @author Gino Tome <ginotome@gmail.com>
+     * @return array 
+     */          
     private function no_key_pagination(array $data)
     {
         $return = [];
@@ -162,15 +191,15 @@ class Core {
      * Validates client
      * Check if a token exists for specified client (use ID 1 for testing)
      * If token does not exist or is expired, generates a new one
-     * If user does not exist return error
-     * If token generation fails return error
+     * If user does not exist return error exception
+     * If token generation fails return error exception
      * @param integer $client_id client ID to request token from
      * 
      * @throws Exception on error
      * @author Gino Tome <ginotome@gmail.com>
      * @return string 
      */     
-    protected function get_token()
+    private function get_token()
     {
         $token = $this->get_valid_client_token();
         if($token === null){
@@ -187,34 +216,17 @@ class Core {
         $this->accessToken = $token;
     }
     
-    private function get_valid_client_token() :?string
-    {
-        $clientCredentials = new ClientCredentials($this->db);
-        $clientCredentials->setClientId($this->clientId);
-        return $clientCredentials->getValidTokenByClientId();
-    }
-    
-    private function get_client_by_id() :?array
-    {
-        $client = new Client($this->db);
-        $client->setId($this->clientId);
-        return $client->getClientById();
-    }
-
     /**
-     * Return generic exception with error message
-     * @param integer $client_id client ID to request token from
+     * Generate access token based on client credentials
+     * If user does not exist return error exception
+     * If token generation fails return error exception
+     * @param array $client 
      * 
      * @throws Exception on error
      * @author Gino Tome <ginotome@gmail.com>
      * @return string 
-     */    
-    protected function throw_exception(string $message, int $code) :object
-    {
-        throw new \Exception($message,$code);
-    }
-    
-    private function generate_token(array $client)
+     */      
+    private function generate_token(array $client) : string 
     {
         $authHeader = $this->generate_auth_header($client);
         $params = [
@@ -230,19 +242,82 @@ class Core {
         {
             $this->throw_exception('Unable to generate token',500);
         }
+        
+        //Store token in database
+        $this->store_token($response);
+
+        return $response['access_token'];
+    }    
+    
+    /**
+     * Store generated token in database
+     * if DB operaton fails return error exception
+     * @param array $data 
+     * 
+     * @throws Exception on error
+     * @author Gino Tome <ginotome@gmail.com>
+     * @return boolean 
+     */     
+    private function store_token(array $data) : bool
+    {
         //Store token in DB
         $clientCredentials = new ClientCredentials($this->db);
         $clientCredentials->setClientId($this->clientId);
-        $clientCredentials->setAccessToken($response['access_token']);
-        $clientCredentials->setExpiresIn(($response['expires_in'] - 120));
+        $clientCredentials->setAccessToken($data['access_token']);
+        $clientCredentials->setExpiresIn(($data['expires_in'] - 120));
         
-        $save = $clientCredentials->storeTokenByClientId(); 
+        $save = (bool)$clientCredentials->storeTokenByClientId();  
         if(!$save){
             $this->throw_exception('Unable to store token',500);
         }
-        return $response['access_token'];
+        return $save;
+    }
+    
+    /**
+     * Get a valid token from database (valid = non expired and existing token)
+
+     * @author Gino Tome <ginotome@gmail.com>
+     * @return string 
+     */        
+    private function get_valid_client_token() :?string
+    {
+        $clientCredentials = new ClientCredentials($this->db);
+        $clientCredentials->setClientId($this->clientId);
+        return $clientCredentials->getValidTokenByClientId();
+    }
+    
+    /**
+     * Get client by ID
+
+     * @author Gino Tome <ginotome@gmail.com>
+     * @return array 
+     */       
+    private function get_client_by_id() :?array
+    {
+        $client = new Client($this->db);
+        $client->setId($this->clientId);
+        return $client->getClientById();
+    }
+
+    /**
+     * Return generic exception with error message
+     * @param string $message int $code
+     * 
+     * @throws Exception on error
+     * @author Gino Tome <ginotome@gmail.com>
+     * @return object 
+     */    
+    protected function throw_exception(string $message, int $code) :object
+    {
+        throw new \Exception($message,$code);
     } 
     
+    /**
+     * Generate authorization header in format to request access token
+     * @param array $client
+     * @author Gino Tome <ginotome@gmail.com>
+     * @return string 
+     */           
     private function generate_auth_header(array $client) :string
     {
         $client_id = $client['client_auth_id'];
@@ -252,28 +327,55 @@ class Core {
         return $header;
     }
     
-    private function generate_auth_header_token()
+    /**
+     * Generate authorization header to auth with API
+     * @author Gino Tome <ginotome@gmail.com>
+     * @return string 
+     */                 
+    private function generate_auth_header_token() : string
     {
         return 'Bearer ' . $this->accessToken;
     }
     
+    /**
+     * send POST request to API
+     * on error throw exception
+     * @author Gino Tome <ginotome@gmail.com>
+     * @return array 
+     */      
     private function post_request(string $url, array $params) :?array
     {
-        $response = (new \GuzzleHttp\Client)->post($url, $params);
-        
-        $responseJson = (string) $response->getBody();
-        $responseArray = json_decode($responseJson,true);
+        $responseArray = null;
+        try{
+            $response = (new \GuzzleHttp\Client)->post($url, $params);
+
+            $responseJson = (string) $response->getBody();
+            $responseArray = json_decode($responseJson,true);            
+        } catch (\Exception $ex) {
+            $this->throw_exception($ex->getMessage(), $ex->getCode());
+        }
         
         return $responseArray;
     }
     
+    /**
+     * send GET request to API
+     * on error throw exception
+     * @author Gino Tome <ginotome@gmail.com>
+     * @return array 
+     */    
     private function get_request(string $url, array $params) :?array
     {
-        $response = (new \GuzzleHttp\Client)->get($url, $params);
+        $responseArray = null;
+        try{
+            $response = (new \GuzzleHttp\Client)->get($url, $params);
+
+            $responseJson = (string) $response->getBody();
+            $responseArray = json_decode($responseJson,true);        
+        } catch (\Exception $ex) {
+            $this->throw_exception($ex->getMessage(), $ex->getCode());
+        }
         
-        $responseJson = (string) $response->getBody();
-        $responseArray = json_decode($responseJson,true);
-        
-        return $responseArray;
+        return $responseArray;        
     }
 }

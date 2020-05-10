@@ -1,5 +1,5 @@
 <?php
-namespace Api\Classes;
+namespace Api\v1\Classes;
 
 /**
  * Manage clients table

@@ -1,8 +1,8 @@
 <?php
-namespace Api\Artist\Album;
+namespace Api\v1\Artist\Album;
 use Psr\Container\ContainerInterface;
-use Api\Artist\GetArtistByName;
-use Api\Classes\Core;
+use Api\v1\Artist\GetArtistByName;
+use Api\v1\Classes\Core;
 /**
  * List albums by artist name
  *

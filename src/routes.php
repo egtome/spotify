@@ -3,17 +3,14 @@
 use Slim\App;
 use Slim\Http\Request;
 use Slim\Http\Response;
-use Api\ListAlbumsByArtistNameAction;
+use Api\v1\ListAlbumsByArtistNameAction;
 use Middlewares\ValidateRequestMiddleware;
 
 return function (App $app) {    
     $container = $app->getContainer();
 
     $app->get('/', function (Request $request, Response $response, array $args) use ($container) {
-        // Sample log message
-        //$container->get('logger')->info("Slim-Skeleton '/' route");
-
-        // Render index view
+        // Render index view (as example to query Spotify API)
         return $container->get('renderer')->render($response, 'index.phtml', $args);
     });
     

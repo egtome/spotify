@@ -1,7 +1,7 @@
 <?php
-namespace Api;
+namespace Api\v1;
 use Psr\Container\ContainerInterface;
-use Api\Artist\Album\ListByArtistName;
+use Api\v1\Artist\Album\ListByArtistName;
 /**
  * List all albums by artist name
  *

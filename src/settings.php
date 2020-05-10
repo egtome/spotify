@@ -1,4 +1,5 @@
 <?php
+require '../env.php'; 
 return [
     'settings' => [
         'displayErrorDetails' => true, // set to false in production
@@ -15,12 +16,13 @@ return [
             'path' => isset($_ENV['docker']) ? 'php://stdout' : __DIR__ . '/../logs/app.log',
             'level' => \Monolog\Logger::DEBUG,
         ],
+        
         // Database connection settings
         "db" => [
-            "host" => "localhost",
-            "dbname" => "spotify_api",
-            "user" => "luser",
-            "pass" => "luser"
+            "host" => $env['db']['host'],
+            "dbname" => $env['db']['dbname'],
+            "user" => $env['db']['user'],
+            "pass" => $env['db']['pass']
         ],        
     ],
 ];
