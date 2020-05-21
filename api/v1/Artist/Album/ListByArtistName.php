@@ -9,29 +9,37 @@ use Api\v1\Classes\Core;
  * @author gino
  */
 class ListByArtistName Extends Core{
+    use \Api\v1\Traits\StoreRequest;
+    
     protected $db;
     protected $clientId;
-    protected $artistName;
+    protected $searchTerm;
     
     public function __construct(object $db, int $clientId, string $artistName) 
     {
         $this->db = $db;
         $this->clientId = (int)$clientId;
-        $this->artistName = $artistName;
+        $this->searchTerm = $artistName;
         parent::__construct();
     }
     
     public function list()
     {
+        
+        $start = time();
         //Get Artist by name
-        $artistByNameInstance = new GetArtistByName($this->db,$this->clientId,$this->artistName);
+        $artistByNameInstance = new GetArtistByName($this->db,$this->clientId,$this->searchTerm);
         $artist = $artistByNameInstance->get();
         if(!empty($artist[0]['id'])){
             $this->artistId = $artist[0]['id'];
             $albums = $this->get_artist_albums();
             if(!empty($albums))
             {
-                return $this->parseResponse($albums);
+                $timeElapsed = (time() - $start);
+                $responseJson = $this->parseResponse($albums);
+                //Store request. This should be as an event with a listener taking care of it
+                $this->storeRequest($responseJson,$timeElapsed);
+                return $responseJson;
             }else
             {
                 $this->throw_exception('No albums found', 404);

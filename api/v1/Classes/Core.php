@@ -7,7 +7,7 @@ use Api\v1\Classes\ClientCredentials;
 /**
  * Spotify API core
  *
- * @author gino
+ * @author Gino Tome
  */
 class Core {
     
